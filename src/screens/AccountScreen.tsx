@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import EditProfileModal from '../components/EditProfileModal';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../types/navigation';
@@ -12,7 +12,6 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function AccountScreen() {
   const navigation = useNavigation<Nav>();
   const [userName, setUserName] = useState('Admin User');
-  const [darkMode, setDarkMode] = useState(true);
   const [editing, setEditing] = useState(false);
 
   return (
@@ -43,11 +42,6 @@ export default function AccountScreen() {
           <Text style={styles.rowText}>Help & Support</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
-
-        <View style={styles.row}>
-          <Text style={styles.rowText}>Dark Theme</Text>
-          <Switch value={darkMode} onValueChange={setDarkMode} />
-        </View>
 
         <Pressable style={styles.logout} onPress={() => navigation.replace('Login')}>
           <Text style={styles.logoutText}>Log Out</Text>
