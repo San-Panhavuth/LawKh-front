@@ -110,4 +110,7 @@ export interface LawDocumentSummaryResponse {
 
 export interface LawDocumentResponse extends LawDocumentSummaryResponse {
   content: string;
+  pdfUrl?: string;
+  fileUrl?: string;
+  downloadUrl?: string;
 }

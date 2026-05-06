@@ -1,7 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { createElement, useEffect, useState } from 'react';
+import { Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { buildApiUrl } from '../config/api';
 import { getLawDocument } from '../services/ragClient';
 import { colors } from '../theme/colors';
 import { LawDocumentResponse } from '../types/api';
@@ -50,6 +51,8 @@ export default function LawDocumentViewerScreen({ route, navigation }: Props) {
     );
   }
 
+  const pdfUrl = doc.pdfUrl ?? doc.fileUrl ?? doc.downloadUrl ?? buildApiUrl(`/law/documents/${encodeURIComponent(documentId)}/download`);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -63,11 +66,31 @@ export default function LawDocumentViewerScreen({ route, navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.actions}>
-          <Pressable style={styles.actionPill}><Text style={styles.actionText}>Download</Text></Pressable>
+          <Pressable style={styles.actionPill} disabled={!pdfUrl} onPress={() => pdfUrl && Linking.openURL(pdfUrl)}>
+            <Text style={styles.actionText}>Download</Text>
+          </Pressable>
           <Pressable style={styles.actionPill}><Text style={styles.actionText}>Share</Text></Pressable>
           <Pressable style={styles.actionPill}><Text style={styles.actionText}>Bookmark</Text></Pressable>
         </View>
-        <Text style={styles.body}>{doc.content}</Text>
+        {pdfUrl && Platform.OS === 'web' ? (
+          <View style={styles.pdfFrame}>
+            {Platform.OS === 'web'
+              ? // React Native Web can render DOM nodes through createElement for simple embeds.
+                // The native app falls back to the text body unless a native PDF viewer is added.
+                (createElement('iframe', {
+                  src: pdfUrl,
+                  title: doc.title,
+                  style: {
+                    width: '100%',
+                    height: '100%',
+                    border: '0',
+                    backgroundColor: colors.surface,
+                  },
+                }) as any)
+              : null}
+          </View>
+        ) : null}
+        <Text style={styles.body}>{pdfUrl ? 'Text preview / OCR content\n\n' : ''}{doc.content}</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -106,6 +129,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
+    backgroundColor: colors.surface,
+  },
+  pdfFrame: {
+    height: 720,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    overflow: 'hidden',
     backgroundColor: colors.surface,
   },
 });

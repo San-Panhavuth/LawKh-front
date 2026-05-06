@@ -280,6 +280,9 @@ Law document detail response:
 ```ts
 interface LawDocumentResponse extends LawDocumentSummaryResponse {
   content: string;
+  pdfUrl?: string;
+  fileUrl?: string;
+  downloadUrl?: string;
 }
 ```
 
@@ -975,6 +978,10 @@ interface LawDocumentResponse {
 Backend requirements:
 
 - Return plain text `content` for current frontend.
+- Return `pdfUrl`, `fileUrl`, or `downloadUrl` if the frontend should embed/open the original PDF.
+- If those fields are absent, the frontend currently falls back to `GET /law/documents/{documentId}/download`.
+- On Expo web, the frontend renders the PDF URL inline in the document viewer.
+- On native APK, the current frontend opens the PDF URL through the system/browser until a native PDF viewer is added.
 - If returning markdown or HTML later, frontend must add a renderer first.
 - Include `categoryId` so citations and category navigation stay consistent.
 - If documents are large, consider paginated content or signed file URLs later.
