@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { documentsByCategory } from '../data/mockData';
+import { getLawDocuments } from '../services/ragClient';
 import { colors } from '../theme/colors';
+import { LawDocumentSummaryResponse } from '../types/api';
 import { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LawDocumentList'>;
@@ -11,11 +12,35 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LawDocumentList'>;
 export default function LawDocumentListScreen({ navigation, route }: Props) {
   const { categoryId, categoryName } = route.params;
   const [query, setQuery] = useState('');
+  const [documents, setDocuments] = useState<LawDocumentSummaryResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getLawDocuments(categoryId)
+      .then((docs) => {
+        if (!mounted) return;
+        setDocuments(docs);
+        setError('');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError('Unable to load documents.');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [categoryId]);
 
   const list = useMemo(() => {
-    const docs = documentsByCategory[categoryId] ?? [];
-    return docs.filter((doc) => `${doc.title} ${doc.subtitle}`.toLowerCase().includes(query.toLowerCase()));
-  }, [categoryId, query]);
+    return documents.filter((doc) => `${doc.title} ${doc.subtitle}`.toLowerCase().includes(query.toLowerCase()));
+  }, [documents, query]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -49,9 +74,10 @@ export default function LawDocumentListScreen({ navigation, route }: Props) {
           >
             <Text style={styles.docTitle}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
-            <Text style={styles.meta}>{item.year} • {item.pages} pages • {item.size}</Text>
+            <Text style={styles.meta}>{[item.year, item.pages ? `${item.pages} pages` : undefined, item.size].filter(Boolean).join(' • ')}</Text>
           </Pressable>
         )}
+        ListEmptyComponent={<Text style={styles.empty}>{isLoading ? 'Loading documents...' : error || 'No documents found.'}</Text>}
       />
     </SafeAreaView>
   );
@@ -89,4 +115,5 @@ const styles = StyleSheet.create({
   docTitle: { color: colors.textPrimary, fontWeight: '700', fontSize: 16 },
   subtitle: { color: colors.textMuted, marginTop: 6 },
   meta: { color: colors.accent, marginTop: 8, fontSize: 12, fontWeight: '600' },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
 });

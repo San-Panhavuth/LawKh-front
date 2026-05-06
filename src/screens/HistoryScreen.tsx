@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, SafeAreaView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
-import { historyItems } from '../data/mockData';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, SafeAreaView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getChatHistory } from '../services/ragClient';
 import { colors } from '../theme/colors';
+import { ChatSummaryResponse } from '../types/api';
 import { RootStackParamList } from '../types/navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -12,17 +13,52 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function HistoryScreen() {
   const navigation = useNavigation<Nav>();
   const [query, setQuery] = useState('');
+  const [items, setItems] = useState<ChatSummaryResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getChatHistory()
+      .then((chats) => {
+        if (!mounted) return;
+        setItems(chats);
+        setError('');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError('Unable to load chat history. Sign in and try again.');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const sections = useMemo(() => {
-    const filtered = historyItems.filter((item) => {
+    const getGroup = (updatedAt: string) => {
+      const updated = new Date(updatedAt);
+      if (Number.isNaN(updated.getTime())) return 'Earlier';
+      const ageMs = Date.now() - updated.getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      if (ageDays <= 7) return 'This Week';
+      if (ageDays <= 31) return 'This Month';
+      return 'Earlier';
+    };
+
+    const filtered = items.filter((item) => {
       const value = `${item.title} ${item.preview}`.toLowerCase();
       return value.includes(query.toLowerCase());
     });
 
     return ['This Week', 'This Month', 'Earlier']
-      .map((group) => ({ title: group, data: filtered.filter((item) => item.group === group) }))
+      .map((group) => ({ title: group, data: filtered.filter((item) => getGroup(item.updatedAt) === group) }))
       .filter((section) => section.data.length);
-  }, [query]);
+  }, [items, query]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -52,10 +88,10 @@ export default function HistoryScreen() {
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </View>
             <Text style={styles.preview}>{item.preview}</Text>
-            <Text style={styles.date}>{item.date}</Text>
+            <Text style={styles.date}>{new Date(item.updatedAt).toLocaleDateString()}</Text>
           </Pressable>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No history found for this query.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{isLoading ? 'Loading history...' : error || 'No history found for this query.'}</Text>}
       />
     </SafeAreaView>
   );

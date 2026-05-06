@@ -1,21 +1,47 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { documentsByCategory } from '../data/mockData';
+import { getLawDocument } from '../services/ragClient';
 import { colors } from '../theme/colors';
+import { LawDocumentResponse } from '../types/api';
 import { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LawDocumentViewer'>;
 
 export default function LawDocumentViewerScreen({ route, navigation }: Props) {
-  const { categoryId, documentId } = route.params;
-  const doc = (documentsByCategory[categoryId] ?? []).find((item) => item.id === documentId);
+  const { documentId } = route.params;
+  const [doc, setDoc] = useState<LawDocumentResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getLawDocument(documentId)
+      .then((item) => {
+        if (!mounted) return;
+        setDoc(item);
+        setError('');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError('Unable to load document.');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [documentId]);
 
   if (!doc) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.center}>
-          <Text style={styles.title}>Document not found</Text>
+          <Text style={styles.title}>{isLoading ? 'Loading document...' : error || 'Document not found'}</Text>
           <Pressable style={styles.action} onPress={() => navigation.goBack()}>
             <Text style={styles.actionText}>Go back</Text>
           </Pressable>
@@ -32,7 +58,7 @@ export default function LawDocumentViewerScreen({ route, navigation }: Props) {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
         <Text style={styles.title}>{doc.title}</Text>
-        <Text style={styles.meta}>{doc.year} • {doc.pages} pages • {doc.size}</Text>
+        <Text style={styles.meta}>{[doc.year, doc.pages ? `${doc.pages} pages` : undefined, doc.size].filter(Boolean).join(' • ')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>

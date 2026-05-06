@@ -34,11 +34,60 @@ export interface RagChatResponse {
   citations: RagCitation[];
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  preferences?: {
+    darkMode?: boolean;
+  };
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface SignUpRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token?: string;
+  password: string;
+}
+
 export interface ChatSummaryResponse {
   id: string;
   title: string;
   preview: string;
   updatedAt: string;
+}
+
+export interface ChatMessageResponse {
+  id: string;
+  role: RagRole;
+  content: string;
+  citations?: RagCitation[];
+  createdAt?: string;
+}
+
+export interface ChatDetailResponse {
+  id: string;
+  title: string;
+  updatedAt?: string;
+  messages: ChatMessageResponse[];
 }
 
 export interface LawCategoryResponse {

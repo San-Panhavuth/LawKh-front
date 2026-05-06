@@ -1,5 +1,7 @@
 import { buildApiUrl } from '../config/api';
+import { getAccessToken } from './tokenStore';
 import {
+  ChatDetailResponse,
   ChatSummaryResponse,
   LawCategoryResponse,
   LawDocumentResponse,
@@ -20,11 +22,13 @@ export class ApiError extends Error {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await getAccessToken();
   const response = await fetch(buildApiUrl(path), {
     ...init,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   });
@@ -47,6 +51,10 @@ export function askRagQuestion(request: RagChatRequest, signal?: AbortSignal) {
 
 export function getChatHistory(signal?: AbortSignal) {
   return requestJson<ChatSummaryResponse[]>('/chats', { signal });
+}
+
+export function getChatDetail(chatId: string, signal?: AbortSignal) {
+  return requestJson<ChatDetailResponse>(`/chats/${encodeURIComponent(chatId)}`, { signal });
 }
 
 export function getLawCategories(signal?: AbortSignal) {

@@ -1,9 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
 import EditProfileModal from '../components/EditProfileModal';
+import { getAuthMe, getMe } from '../services/authClient';
+import { clearAccessToken, getAccessToken } from '../services/tokenStore';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../types/navigation';
 
@@ -12,8 +14,39 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function AccountScreen() {
   const navigation = useNavigation<Nav>();
   const [userName, setUserName] = useState('Admin User');
+  const [email, setEmail] = useState('user@lawkh.com');
   const [darkMode, setDarkMode] = useState(true);
   const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUser = async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+
+      try {
+        const user = await getMe().catch(() => getAuthMe());
+        if (!mounted) return;
+        setUserName(user.name);
+        setEmail(user.email);
+        setDarkMode(user.preferences?.darkMode ?? true);
+      } catch {
+        // Keep local defaults if profile loading fails.
+      }
+    };
+
+    loadUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const logout = async () => {
+    await clearAccessToken();
+    navigation.replace('Login');
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -24,7 +57,7 @@ export default function AccountScreen() {
           <View style={styles.avatar}><Text style={styles.avatarText}>{userName.split(' ').map((p) => p[0]).join('')}</Text></View>
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{userName}</Text>
-            <Text style={styles.email}>user@lawkh.com</Text>
+            <Text style={styles.email}>{email}</Text>
           </View>
           <Pressable onPress={() => setEditing(true)}>
             <Ionicons name="create-outline" size={20} color={colors.accent} />
@@ -49,7 +82,7 @@ export default function AccountScreen() {
           <Switch value={darkMode} onValueChange={setDarkMode} />
         </View>
 
-        <Pressable style={styles.logout} onPress={() => navigation.replace('Login')}>
+        <Pressable style={styles.logout} onPress={logout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </Pressable>
       </View>

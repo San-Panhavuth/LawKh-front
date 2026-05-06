@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { login } from '../services/authClient';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../types/navigation';
 
@@ -10,10 +11,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-  const submit = () => {
+  const submit = async () => {
     if (!email.trim() || !password.trim()) return;
-    navigation.replace('MainTabs');
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await login({ email: email.trim(), password });
+      navigation.replace('MainTabs');
+    } catch {
+      setError('Unable to sign in. Check your email and password, then try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -53,8 +66,10 @@ export default function LoginScreen({ navigation }: Props) {
             <Text style={styles.linkMuted}>Forgot password?</Text>
           </Pressable>
 
-          <Pressable style={styles.primaryButton} onPress={submit}>
-            <Text style={styles.primaryText}>Sign In</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <Pressable style={[styles.primaryButton, isSubmitting && styles.disabled]} onPress={submit} disabled={isSubmitting}>
+            <Text style={styles.primaryText}>{isSubmitting ? 'Signing In...' : 'Sign In'}</Text>
           </Pressable>
         </View>
 
@@ -96,7 +111,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
+  disabled: { opacity: 0.55 },
   primaryText: { color: colors.textPrimary, fontWeight: '700' },
+  errorText: { color: colors.danger, fontSize: 13 },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   footerText: { color: colors.textMuted },
   linkAccent: { color: colors.accent, fontWeight: '700' },

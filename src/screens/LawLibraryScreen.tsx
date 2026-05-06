@@ -1,14 +1,41 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useEffect, useState } from 'react';
 import { FlatList, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { lawCategories } from '../data/mockData';
+import { getLawCategories } from '../services/ragClient';
 import { colors } from '../theme/colors';
+import { LawCategoryResponse } from '../types/api';
 import { RootStackParamList } from '../types/navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LawLibraryScreen() {
   const navigation = useNavigation<Nav>();
+  const [categories, setCategories] = useState<LawCategoryResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    getLawCategories()
+      .then((items) => {
+        if (!mounted) return;
+        setCategories(items);
+        setError('');
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setError('Unable to load law categories.');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -18,7 +45,7 @@ export default function LawLibraryScreen() {
       </View>
 
       <FlatList
-        data={lawCategories}
+        data={categories}
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.row}
@@ -28,12 +55,13 @@ export default function LawLibraryScreen() {
             style={styles.card}
             onPress={() => navigation.navigate('LawDocumentList', { categoryId: item.id, categoryName: item.name })}
           >
-            <Text style={styles.icon}>{item.icon}</Text>
+            <Text style={styles.icon}>{item.icon ?? '📄'}</Text>
             <Text style={styles.cardTitle}>{item.name}</Text>
             <Text style={styles.description}>{item.description}</Text>
             <Text style={styles.badge}>{item.documentCount} docs</Text>
           </Pressable>
         )}
+        ListEmptyComponent={<Text style={styles.empty}>{isLoading ? 'Loading law categories...' : error || 'No law categories found.'}</Text>}
       />
     </SafeAreaView>
   );
@@ -60,4 +88,5 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   description: { color: colors.textMuted, fontSize: 12 },
   badge: { color: colors.accent, fontSize: 12, fontWeight: '700' },
+  empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
 });

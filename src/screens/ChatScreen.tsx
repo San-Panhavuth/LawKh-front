@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import CitationModal from '../components/CitationModal';
 import { promptSuggestions, savedChats } from '../data/mockData';
-import { askRagQuestion } from '../services/ragClient';
+import { askRagQuestion, getChatDetail } from '../services/ragClient';
 import { colors } from '../theme/colors';
 import { Message } from '../types/models';
 import { RootStackParamList } from '../types/navigation';
@@ -33,24 +33,54 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [activeChatId, setActiveChatId] = useState<string | undefined>(chatId);
+  const [chatTitle, setChatTitle] = useState('New Chat');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     if (!chatId) {
       setMessages([]);
+      setActiveChatId(undefined);
+      setChatTitle('New Chat');
       return;
     }
 
-    const existing = savedChats.find((chat) => chat.id === chatId);
-    setMessages(existing?.messages ?? []);
     setActiveChatId(chatId);
+
+    getChatDetail(chatId)
+      .then((chat) => {
+        if (!mounted) return;
+        setChatTitle(chat.title || 'New Chat');
+        setMessages(
+          chat.messages.map((message) => ({
+            id: message.id,
+            type: message.role === 'user' ? 'user' : 'ai',
+            content: message.content,
+            citations: message.citations?.map((citation) => ({
+              title: citation.title,
+              fullCitation: citation.fullCitation,
+            })),
+          })),
+        );
+      })
+      .catch(() => {
+        if (!mounted) return;
+        const existing = savedChats.find((chat) => chat.id === chatId);
+        setChatTitle(existing?.title ?? 'New Chat');
+        setMessages(existing?.messages ?? []);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [chatId]);
 
   const title = useMemo(() => {
-    if (!chatId) return 'New Chat';
-    return savedChats.find((chat) => chat.id === chatId)?.title ?? 'New Chat';
-  }, [chatId]);
+    if (!activeChatId) return 'New Chat';
+    return chatTitle;
+  }, [activeChatId, chatTitle]);
 
   const handleSend = async () => {
     const question = inputValue.trim();
@@ -78,6 +108,7 @@ export default function ChatScreen() {
       });
 
       setActiveChatId(response.chatId);
+      setChatTitle((prev) => (prev === 'New Chat' ? question : prev));
       setMessages([
         ...nextMessages,
         {

@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { forgotPassword } from '../services/authClient';
 import { colors } from '../theme/colors';
 import { RootStackParamList } from '../types/navigation';
 
@@ -8,6 +9,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    if (!email.trim()) return;
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await forgotPassword({ email: email.trim() });
+      navigation.navigate('ResetPassword');
+    } catch {
+      setError('Unable to request a reset. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -23,8 +41,9 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           placeholderTextColor={colors.textMuted}
           style={styles.input}
         />
-        <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('ResetPassword')}>
-          <Text style={styles.primaryText}>Send Reset Link</Text>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <Pressable style={[styles.primaryButton, isSubmitting && styles.disabled]} onPress={submit} disabled={isSubmitting}>
+          <Text style={styles.primaryText}>{isSubmitting ? 'Sending...' : 'Send Reset Link'}</Text>
         </Pressable>
         <Pressable onPress={() => navigation.goBack()}>
           <Text style={styles.linkAccent}>Back to login</Text>
@@ -55,6 +74,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  disabled: { opacity: 0.55 },
   primaryText: { color: colors.textPrimary, fontWeight: '700' },
+  errorText: { color: colors.danger, fontSize: 13 },
   linkAccent: { color: colors.accent, fontWeight: '700' },
 });
