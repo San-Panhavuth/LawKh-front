@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import CitationModal from '../components/CitationModal';
 import { promptSuggestions, savedChats } from '../data/mockData';
+import { askRagQuestion } from '../services/ragClient';
 import { colors } from '../theme/colors';
 import { Message } from '../types/models';
 import { RootStackParamList } from '../types/navigation';
@@ -31,6 +32,8 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [activeChatId, setActiveChatId] = useState<string | undefined>(chatId);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export default function ChatScreen() {
 
     const existing = savedChats.find((chat) => chat.id === chatId);
     setMessages(existing?.messages ?? []);
+    setActiveChatId(chatId);
   }, [chatId]);
 
   const title = useMemo(() => {
@@ -48,28 +52,56 @@ export default function ChatScreen() {
     return savedChats.find((chat) => chat.id === chatId)?.title ?? 'New Chat';
   }, [chatId]);
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return;
+  const handleSend = async () => {
+    const question = inputValue.trim();
+    if (!question || isGenerating) return;
 
     const userMessage: Message = {
       id: String(Date.now()),
       type: 'user',
-      content: inputValue.trim(),
+      content: question,
     };
 
-    const aiMessage: Message = {
-      id: String(Date.now() + 1),
-      type: 'ai',
-      content:
-        'Based on your question, key legal analysis includes the governing statute, jurisdiction-specific precedents, burden of proof, and practical compliance steps. I can also provide a structured memo if you want.',
-      citations: [
-        { title: 'Contract Law 2024', fullCitation: 'UCC § 2-302 (Unconscionability)' },
-        { title: 'Business Law Act 2023', fullCitation: 'Restatement (Second) of Contracts § 208' },
-      ],
-    };
-
-    setMessages((prev) => [...prev, userMessage, aiMessage]);
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setInputValue('');
+    setIsGenerating(true);
+
+    try {
+      const response = await askRagQuestion({
+        question,
+        chatId: activeChatId,
+        history: messages.map((message) => ({
+          role: message.type === 'user' ? 'user' : 'assistant',
+          content: message.content,
+        })),
+      });
+
+      setActiveChatId(response.chatId);
+      setMessages([
+        ...nextMessages,
+        {
+          id: String(Date.now() + 1),
+          type: 'ai',
+          content: response.answer,
+          citations: response.citations.map((citation) => ({
+            title: citation.title,
+            fullCitation: citation.fullCitation,
+          })),
+        },
+      ]);
+    } catch {
+      setMessages([
+        ...nextMessages,
+        {
+          id: String(Date.now() + 1),
+          type: 'ai',
+          content: 'I could not reach the legal assistant backend. Please check your connection and try again.',
+        },
+      ]);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -135,10 +167,15 @@ export default function ChatScreen() {
             style={styles.input}
             value={inputValue}
             onChangeText={setInputValue}
-            placeholder="Ask a legal question..."
+            editable={!isGenerating}
+            placeholder={isGenerating ? 'Generating answer...' : 'Ask a legal question...'}
             placeholderTextColor={colors.textMuted}
           />
-          <Pressable onPress={handleSend} style={[styles.sendButton, !inputValue.trim() && styles.sendDisabled]}>
+          <Pressable
+            onPress={handleSend}
+            disabled={!inputValue.trim() || isGenerating}
+            style={[styles.sendButton, (!inputValue.trim() || isGenerating) && styles.sendDisabled]}
+          >
             <Ionicons name="send" size={18} color={colors.textPrimary} />
           </Pressable>
         </View>
