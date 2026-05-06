@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import EditProfileModal from '../components/EditProfileModal';
 import { getAuthMe, getMe } from '../services/authClient';
 import { clearAccessToken, getAccessToken } from '../services/tokenStore';
@@ -15,7 +15,6 @@ export default function AccountScreen() {
   const navigation = useNavigation<Nav>();
   const [userName, setUserName] = useState('Admin User');
   const [email, setEmail] = useState('user@lawkh.com');
-  const [darkMode, setDarkMode] = useState(true);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
@@ -30,7 +29,6 @@ export default function AccountScreen() {
         if (!mounted) return;
         setUserName(user.name);
         setEmail(user.email);
-        setDarkMode(user.preferences?.darkMode ?? true);
       } catch {
         // Keep local defaults if profile loading fails.
       }
@@ -54,7 +52,9 @@ export default function AccountScreen() {
         <Text style={styles.title}>Account</Text>
 
         <View style={styles.profileCard}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{userName.split(' ').map((p) => p[0]).join('')}</Text></View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{userName.split(' ').map((part) => part[0]).join('')}</Text>
+          </View>
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{userName}</Text>
             <Text style={styles.email}>{email}</Text>
@@ -76,11 +76,6 @@ export default function AccountScreen() {
           <Text style={styles.rowText}>Help & Support</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </Pressable>
-
-        <View style={styles.row}>
-          <Text style={styles.rowText}>Dark Theme</Text>
-          <Switch value={darkMode} onValueChange={setDarkMode} />
-        </View>
 
         <Pressable style={styles.logout} onPress={logout}>
           <Text style={styles.logoutText}>Log Out</Text>
