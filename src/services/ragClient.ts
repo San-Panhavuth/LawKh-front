@@ -41,6 +41,24 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(buildApiUrl(path), {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new ApiError(body || `Request failed with status ${response.status}`, response.status);
+  }
+}
+
 export function askRagQuestion(request: RagChatRequest, signal?: AbortSignal) {
   return requestJson<RagChatResponse>('/chat', {
     method: 'POST',
@@ -55,6 +73,13 @@ export function getChatHistory(signal?: AbortSignal) {
 
 export function getChatDetail(chatId: string, signal?: AbortSignal) {
   return requestJson<ChatDetailResponse>(`/chats/${encodeURIComponent(chatId)}`, { signal });
+}
+
+export function deleteChat(chatId: string, signal?: AbortSignal) {
+  return requestEmpty(`/chats/${encodeURIComponent(chatId)}`, {
+    method: 'DELETE',
+    signal,
+  });
 }
 
 export function getLawCategories(signal?: AbortSignal) {

@@ -1500,6 +1500,19 @@ GET /chats
 GET /chats/{chatId}
 ```
 
+Frontend also includes a delete button in the History tab and expects:
+
+```txt
+DELETE /chats/{chatId}
+```
+
+Expected behavior:
+
+- Requires `Authorization: Bearer <token>`.
+- Deletes or soft-deletes the chat for the current user.
+- Returns `204 No Content` or a small JSON success response.
+- If the chat does not belong to the user, return `403` or `404`.
+
 Auth behavior:
 
 - These should require `Authorization: Bearer <token>`.

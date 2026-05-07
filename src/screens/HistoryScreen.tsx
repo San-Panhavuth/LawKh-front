@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
-import { getChatHistory } from '../services/ragClient';
+import { deleteChat, getChatHistory } from '../services/ragClient';
 import { colors } from '../theme/colors';
 import { ChatSummaryResponse } from '../types/api';
 import { RootStackParamList } from '../types/navigation';
@@ -15,6 +15,7 @@ export default function HistoryScreen() {
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<ChatSummaryResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -60,6 +61,21 @@ export default function HistoryScreen() {
       .filter((section) => section.data.length);
   }, [items, query]);
 
+  const handleDelete = async (chatId: string) => {
+    if (deletingId) return;
+    setDeletingId(chatId);
+    setError('');
+
+    try {
+      await deleteChat(chatId);
+      setItems((prev) => prev.filter((item) => item.id !== chatId));
+    } catch {
+      setError('Unable to delete chat history. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -85,10 +101,23 @@ export default function HistoryScreen() {
           <Pressable style={styles.card} onPress={() => navigation.navigate('ChatDetail', { chatId: item.id })}>
             <View style={styles.cardTop}>
               <Text style={styles.cardTitle}>{item.title}</Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={styles.deleteButton}
+                  disabled={deletingId === item.id}
+                  hitSlop={8}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleDelete(item.id);
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={17} color={colors.danger} />
+                </Pressable>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </View>
             </View>
             <Text style={styles.preview}>{item.preview}</Text>
-            <Text style={styles.date}>{new Date(item.updatedAt).toLocaleDateString()}</Text>
+            <Text style={styles.date}>{deletingId === item.id ? 'Deleting...' : new Date(item.updatedAt).toLocaleDateString()}</Text>
           </Pressable>
         )}
         ListEmptyComponent={<Text style={styles.empty}>{isLoading ? 'Loading history...' : error || 'No history found for this query.'}</Text>}
@@ -125,6 +154,16 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', flex: 1 },
+  cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deleteButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   preview: { color: colors.textMuted, marginTop: 6 },
   date: { color: colors.accent, marginTop: 8, fontSize: 12, fontWeight: '600' },
   empty: { color: colors.textMuted, textAlign: 'center', marginTop: 24 },
