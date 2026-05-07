@@ -24,8 +24,18 @@ export interface RagCitation {
   documentId?: string;
   categoryId?: string;
   page?: number;
+  pageStart?: number;
+  pageEnd?: number;
   excerpt?: string;
   score?: number;
+  fileName?: string;
+  sourceUrl?: string;
+  pdfUrl?: string;
+  fileUrl?: string;
+  downloadUrl?: string;
+  chunkId?: string;
+  sectionTitle?: string;
+  locationLabel?: string;
 }
 
 export interface RagChatResponse {

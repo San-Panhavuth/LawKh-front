@@ -1,8 +1,24 @@
 export type MessageType = 'user' | 'ai';
 
 export interface Citation {
+  id?: string;
   title: string;
   fullCitation: string;
+  documentId?: string;
+  categoryId?: string;
+  page?: number;
+  pageStart?: number;
+  pageEnd?: number;
+  excerpt?: string;
+  score?: number;
+  fileName?: string;
+  sourceUrl?: string;
+  pdfUrl?: string;
+  fileUrl?: string;
+  downloadUrl?: string;
+  chunkId?: string;
+  sectionTitle?: string;
+  locationLabel?: string;
 }
 
 export interface Message {

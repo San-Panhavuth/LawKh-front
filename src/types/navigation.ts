@@ -6,7 +6,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ChatDetail: { chatId: string };
   LawDocumentList: { categoryId: string; categoryName: string };
-  LawDocumentViewer: { categoryId: string; documentId: string };
+  LawDocumentViewer: { categoryId: string; documentId: string; page?: number };
   PrivacySecurity: undefined;
   TermsConditions: undefined;
   HelpSupport: undefined;

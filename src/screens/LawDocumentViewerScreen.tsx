@@ -11,7 +11,7 @@ import { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'LawDocumentViewer'>;
 
 export default function LawDocumentViewerScreen({ route, navigation }: Props) {
-  const { documentId } = route.params;
+  const { documentId, page } = route.params;
   const [doc, setDoc] = useState<LawDocumentResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,7 +51,8 @@ export default function LawDocumentViewerScreen({ route, navigation }: Props) {
     );
   }
 
-  const pdfUrl = doc.pdfUrl ?? doc.fileUrl ?? doc.downloadUrl ?? buildApiUrl(`/law/documents/${encodeURIComponent(documentId)}/download`);
+  const basePdfUrl = doc.pdfUrl ?? doc.fileUrl ?? doc.downloadUrl ?? buildApiUrl(`/law/documents/${encodeURIComponent(documentId)}/download`);
+  const pdfUrl = page && Platform.OS === 'web' ? `${basePdfUrl}#page=${page}` : basePdfUrl;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -61,7 +62,9 @@ export default function LawDocumentViewerScreen({ route, navigation }: Props) {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
         <Text style={styles.title}>{doc.title}</Text>
-        <Text style={styles.meta}>{[doc.year, doc.pages ? `${doc.pages} pages` : undefined, doc.size].filter(Boolean).join(' • ')}</Text>
+        <Text style={styles.meta}>
+          {[doc.year, doc.pages ? `${doc.pages} pages` : undefined, doc.size, page ? `cited page ${page}` : undefined].filter(Boolean).join(' • ')}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>

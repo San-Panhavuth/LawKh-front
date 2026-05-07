@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   SafeAreaView,
@@ -16,9 +17,10 @@ import {
 } from 'react-native';
 import CitationModal from '../components/CitationModal';
 import { promptSuggestions, savedChats } from '../data/mockData';
-import { askRagQuestion, getChatDetail } from '../services/ragClient';
+import { askRagQuestion, getChatDetail, getCitation } from '../services/ragClient';
 import { colors } from '../theme/colors';
 import { Message } from '../types/models';
+import { Citation } from '../types/models';
 import { RootStackParamList } from '../types/navigation';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -35,7 +37,9 @@ export default function ChatScreen() {
   const [activeChatId, setActiveChatId] = useState<string | undefined>(chatId);
   const [chatTitle, setChatTitle] = useState('New Chat');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedCitation, setSelectedCitation] = useState<string | null>(null);
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+  const [isCitationLoading, setIsCitationLoading] = useState(false);
+  const [citationError, setCitationError] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -59,8 +63,24 @@ export default function ChatScreen() {
             type: message.role === 'user' ? 'user' : 'ai',
             content: message.content,
             citations: message.citations?.map((citation) => ({
+              id: citation.id,
               title: citation.title,
               fullCitation: citation.fullCitation,
+              documentId: citation.documentId,
+              categoryId: citation.categoryId,
+              page: citation.page,
+              pageStart: citation.pageStart,
+              pageEnd: citation.pageEnd,
+              excerpt: citation.excerpt,
+              score: citation.score,
+              fileName: citation.fileName,
+              sourceUrl: citation.sourceUrl,
+              pdfUrl: citation.pdfUrl,
+              fileUrl: citation.fileUrl,
+              downloadUrl: citation.downloadUrl,
+              chunkId: citation.chunkId,
+              sectionTitle: citation.sectionTitle,
+              locationLabel: citation.locationLabel,
             })),
           })),
         );
@@ -115,10 +135,7 @@ export default function ChatScreen() {
           id: String(Date.now() + 1),
           type: 'ai',
           content: response.answer,
-          citations: response.citations.map((citation) => ({
-            title: citation.title,
-            fullCitation: citation.fullCitation,
-          })),
+          citations: response.citations,
         },
       ]);
     } catch {
@@ -132,6 +149,48 @@ export default function ChatScreen() {
       ]);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleCitationPress = async (citation: Citation) => {
+    setSelectedCitation(citation);
+    setIsCitationLoading(true);
+    setCitationError('');
+
+    const lookupKeys = [citation.id, citation.fullCitation].filter(Boolean) as string[];
+
+    for (const key of lookupKeys) {
+      try {
+        const detail = await getCitation(key);
+        setSelectedCitation({ ...citation, ...detail });
+        setIsCitationLoading(false);
+        return;
+      } catch {
+        // Try the next known citation key before surfacing an error.
+      }
+    }
+
+    setCitationError('Unable to load full citation details.');
+    setIsCitationLoading(false);
+  };
+
+  const openSelectedCitationSource = () => {
+    if (!selectedCitation) return;
+    const page = selectedCitation.page ?? selectedCitation.pageStart;
+
+    if (selectedCitation.documentId) {
+      navigation.navigate('LawDocumentViewer', {
+        categoryId: selectedCitation.categoryId ?? '',
+        documentId: selectedCitation.documentId,
+        page,
+      });
+      setSelectedCitation(null);
+      return;
+    }
+
+    const sourceUrl = selectedCitation.pdfUrl ?? selectedCitation.fileUrl ?? selectedCitation.downloadUrl ?? selectedCitation.sourceUrl;
+    if (sourceUrl) {
+      Linking.openURL(page && Platform.OS === 'web' ? `${sourceUrl}#page=${page}` : sourceUrl);
     }
   };
 
@@ -180,7 +239,7 @@ export default function ChatScreen() {
                         <Pressable
                           key={`${item.id}-${citation.title}`}
                           style={styles.citationPill}
-                          onPress={() => setSelectedCitation(citation.fullCitation)}
+                          onPress={() => handleCitationPress(citation)}
                         >
                           <Text style={styles.citationPillText}>[{index + 1}] {citation.title}</Text>
                         </Pressable>
@@ -211,7 +270,15 @@ export default function ChatScreen() {
           </Pressable>
         </View>
 
-        {selectedCitation ? <CitationModal citation={selectedCitation} onClose={() => setSelectedCitation(null)} /> : null}
+        {selectedCitation ? (
+          <CitationModal
+            citation={selectedCitation}
+            isLoading={isCitationLoading}
+            error={citationError}
+            onClose={() => setSelectedCitation(null)}
+            onOpenSource={openSelectedCitationSource}
+          />
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
